@@ -1,23 +1,51 @@
 var fs = require('fs');
 var c = require('./config/commands.json')
 const sharp = require('sharp');
+const path = require('path');
 
 var n1 = '50370649152@s.whatsapp.net';
 var n2 = '50379404214@s.whatsapp.net';
-const {fetchJson}=require('fetch-json');
-//console.log(m.participants)
 
-(async(query)=>{
-    var peli = await fetchJson.get(`https://kurisu-api.herokuapp.com/api/movie?search=${query}`)
-    if (peli.error) return { text: 'Ocurrio un error inesperado' }
-    var puntuacion = "";
-    for (var i = 0; i < parseInt(parseInt(peli.score / 2)); i++) {
-      puntuacion += "⭐"
+const imgbbUploader = require("imgbb-uploader");
+const config = require('./config/config.js');
+
+const uploadImage = async (img, name, expiration, format = 'jpg') => {
+  return new Promise(async (resolve, reject) => {    
+    var fileDelete = false;    
+    if (typeof(img)=='object') {      
+      let pathh = path.join(__dirname, /*'..' ,*/'/temp/' + Date.now() + '.' + format);
+      fs.writeFileSync(pathh, img);
+      img = pathh;
+      fileDelete = true;
+      console.log('siu?'+format)
     }
-  //console.log(peli)
+    console.log('nose')
+    var _name = name ? name : Date.now();
+    var _expiration = expiration ? expiration : 120;
+
+    if (!img) return 'error';
+    const options = {
+      apiKey: config.imgbb_apikey,
+      imagePath: img,
+      name: _name,
+      expiration: _expiration
+    };
     
-  console.log( { image: { url: peli.poster }, caption: "\n*🗡️Titulo🗡️:* " + peli.title + "\n\n*🕘Año de estreno🕘:* " + peli.year + "\n\n*⚔Generos⚔:* " + peli.genres.join('✔ ') + '✔\n\n*puntuacion:*' + puntuacion + "\n\nsinopsis:" + peli.overview })
-})('toy story')
+    imgbbUploader(options)
+      .then((response) => { if (fileDelete) fs.unlinkSync(img);  return resolve(response.url) })
+      .catch((error) => { return reject({ error: true, reason: error })});
+  
+  })
+}
+
+
+(async function () {
+  var x = await uploadImage('./gUsZT.jpg', 'siuuuu22222')
+  
+  console.log(x)
+
+})();
+
 
 //VERF ADMIN
 /*

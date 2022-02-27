@@ -3,7 +3,7 @@ const makeWASocket = require('@adiwajshing/baileys');
 
 
 const fs = require('fs');
-const { fun, greeting, imageSearch, youtube, translate, speech, zodiac, simi, stickers, nfsw, menus, sfw, misc } = require('../lib');
+const { fun, greeting, imageSearch, youtube, translate, speech, zodiac, simi, stickers, nfsw, menus, sfw, misc,imagesEfects } = require('../lib');
 const { group } = require('../utils');
 
 module.exports = async (m, sock) => {
@@ -76,7 +76,8 @@ module.exports = async (m, sock) => {
 
 
   //COMMANDS
-  if (messageType == 'imageMessage' && lowerMessage.startsWith(prefix + 'stickerbg')) {
+  if (messageType == 'imageMessage' && command=='stickerbg') {
+    await sock.sendPresenceUpdate('composing', key)
     var stream = false;
     var sticker = false;
     var type = 'deafult';
@@ -100,7 +101,7 @@ module.exports = async (m, sock) => {
     //sock.sendMessage(m.key.remoteJid, { sticker: {url:'./aa9d75c6-7fd5-429a-bbde-fa60ccaf0959.webp'} }, { quoted: m });
 
   }
-  else if (command == 'sticker' ||  command == 'stiker') {
+  else if (command == 'sticker' || command == 'stiker') {
     await sock.sendPresenceUpdate('composing', key)
     var stream = "";
     var sticker = false;
@@ -108,7 +109,7 @@ module.exports = async (m, sock) => {
     for (const t of config.stickerTypes) {
       if (lowerMessage.includes('$' + t)) {
         type = t;
-        message = outPrefixMessage.replace(new RegExp(`\\$${t}`, 'gi'), '')
+        outPrefixMessage = outPrefixMessage.replace(new RegExp(`\\$${t}`, 'gi'), '')
       }
     }
 
@@ -128,20 +129,31 @@ module.exports = async (m, sock) => {
     sock.sendMessage(m.key.remoteJid, { sticker: sticker }, { quoted: m })
     //sock.sendMessage(m.key.remoteJid, { sticker: { url: './remove-bg.png' } }, { quoted: m })
   }
-
+  else if (command == 'wasted' && messageType == 'imageMessage') {
+    await sock.sendPresenceUpdate('composing', key)
+    stream = await makeWASocket.downloadContentFromMessage(media, 'image');
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk])
+    }
+    sock.sendMessage(key, { image: { url: await imagesEfects.wasted(buffer) } },{quoted:m})
+  }
   else if (command == 'meme') {
-    console.log(await fun.meme())
+    await sock.sendPresenceUpdate('composing', key)
+    sock.sendMessage(key, { image: { url: await fun.meme() } },{quoted:m})
   }
   else if (command == 'hola') {
-    console.log('hola')
+    await sock.sendPresenceUpdate('composing', key)
     sock.sendMessage(key, { text: await greeting() }, { quoted: m });
   }
   else if (command == 'frase') {
+    await sock.sendPresenceUpdate('composing', key)
     sock.sendMessage(key, { text: await fun.phrase() }, { quoted: m });
   }
   else if (message.startsWith(prefix + 'image')) {
+    await sock.sendPresenceUpdate('composing', key)
     await imageSearch.searchByText(outPrefixMessage, function (error, result) {
-      console.log(result)
+      sock.sendMessage(key, { text: result }, { quoted: m });
     })
   }
   else if (command == 'music') {
@@ -154,11 +166,13 @@ module.exports = async (m, sock) => {
 
   }
   else if (command == 'translate') {
+    await sock.sendPresenceUpdate('composing', key)
     if (!args[0]) return await sock.sendMessage(key, { text: 'ingrese el idioma y texto a traducir' }, { quoted: m })
     const tr = await translate(outPrefixMessage.split(' ')[0], outPrefixMessage.slice(outPrefixMessage.split(' ')[0].length + 1));
     await sock.sendMessage(key, { text: tr }, { quoted: m })
   }
   else if (command == 'say') {
+    
     if (!args[0]) return await sock.sendMessage(key, { text: 'ingrese el texto que deseas que diga' }, { quoted: m })
     var lang = 'es'
     if (!outPrefixMessage) return await sock.sendMessage(key, { text: 'Escribe lo que quieras que diga' }, { quoted: m })
@@ -167,14 +181,15 @@ module.exports = async (m, sock) => {
       outPrefixMessage = outPrefixMessage.slice(outPrefixMessage.split(' ')[0].length + 1);
     }
     await sock.sendPresenceUpdate('recording', key)
-    speech(lang, outPrefixMessage, Date.now(), async function (path,error) {
-      if(error) return await sock.sendMessage(key,{text:'ocurri un error, puede que el lenguaje no este soportado o este mal escrito.'},{quoted:m})
+    speech(lang, outPrefixMessage, Date.now(), async function (path, error) {
+      if (error) return await sock.sendMessage(key, { text: 'ocurri un error, puede que el lenguaje no este soportado o este mal escrito.' }, { quoted: m })
       let mimetype = makeWASocket.getDevice(m.key.id) == 'ios' ? 'audio/mpeg' : 'audio/mp4';
       await sock.sendMessage(key, { ptt: true, audio: { url: path }, mimetype }, { quoted: m })
     })
 
   }
   else if (command == 'ws') {
+    await sock.sendPresenceUpdate('composing', key)
     var fullpage = false;
     if (!args[0]) return await sock.sendMessage(key, { text: 'Escribe el enlace a buscar luego del comando' }, { quoted: m })
     if (lowerMessage.includes('$f')) {
@@ -187,7 +202,7 @@ module.exports = async (m, sock) => {
     await sock.sendMessage(key, { image: { url: result } }, { quoted: m })
   }
   else if (command == 'hub') {
-    //cambiar estado a escribiendo
+    await sock.sendPresenceUpdate('composing', key)
     if (!args[0]) return await sock.sendMessage(key, { text: 'Escribe dos palabras luego del comando.' }, { quoted: m })
     fun.hub(args[0], args[1], async function (result, err) {
       if (err) return await sock.sendMessage(key, { text: 'ocurrio un error, intenta mas tarde.' }, { quoted: m })
@@ -195,22 +210,23 @@ module.exports = async (m, sock) => {
     });
   }
   else if (command == 'zodiac') {
-    //cambiar estado a escribiendo
+    await sock.sendPresenceUpdate('composing', key)
     await sock.sendMessage(key, { text: await zodiac.zodiac(args[0] ? args[0] : 'signs') }, { quoted: m })
 
   }
   else if (command == 'love') {
+    await sock.sendPresenceUpdate('composing', key)
     const names = outPrefixMessage.split('$');
     if (!names[1]) return await sock.sendMessage(key, { text: 'ingrese los nombres separados por $' }, { quoted: m });
     await sock.sendMessage(key, { image: { url: await zodiac.loveCalc(names[1], names[2]) } }, { quoted: m })
   }
   else if (command == 'simi') {
-    //cambiar estado a escribiendo
+    await sock.sendPresenceUpdate('composing', key)
     await sock.sendMessage(key, { text: await simi(outPrefixMessage ? outPrefixMessage : 'hola') }, { quoted: m })
 
   }
   else if (command == '8ball') {
-    //cambiar estado a escribiendo
+    await sock.sendPresenceUpdate('composing', key)
     if (!outPrefixMessage) return await sock.sendMessage(key, { text: 'Preguntame algo' }, { quoted: m })
 
     await sock.sendMessage(key, { text: await fun.ball(outPrefixMessage) }, { quoted: m })
@@ -218,61 +234,70 @@ module.exports = async (m, sock) => {
 
   }
   else if (command == 'roll') {
-
+    await sock.sendPresenceUpdate('composing', key)
     await sock.sendMessage(key, { sticker: { url: await fun.roll() } }, { quoted: m })
 
   }
   else if (command == 'anime') {
+    await sock.sendPresenceUpdate('composing', key)
     if (!args[0]) return await sock.sendMessage(key, await fun.RandomAnime(), { quoted: m })
     await sock.sendMessage(key, await fun.SearchAnime(outPrefixMessage), { quoted: m })
   }
   else if (command == 'movie') {
-    if (!args[0]) return await sock.sendMessage(key, {text:'Ingrese el nombre de la pelicula que busca.'}, { quoted: m })
+    await sock.sendPresenceUpdate('composing', key)
+    if (!args[0]) return await sock.sendMessage(key, { text: 'Ingrese el nombre de la pelicula que busca.' }, { quoted: m })
     await sock.sendMessage(key, await fun.movie(outPrefixMessage), { quoted: m })
   }
   else if (command == 'doge') {
-
+    await sock.sendPresenceUpdate('composing', key)
     await sock.sendMessage(key, { sticker: await stickers.doge() }, { quoted: m })
   }
   else if (command == 'snime') {
+    await sock.sendPresenceUpdate('composing', key)
     await sock.sendMessage(key, { sticker: await stickers.snime() }, { quoted: m })
   }
   else if (command == 'waifu') {
+    await sock.sendPresenceUpdate('composing', key)
     sfw.randomSFW(async (result) => {
       await sock.sendMessage(key, { image: { url: result.image }, caption: result.name }, { quoted: m })
 
     });
   }
   else if (command == 'husb') {
+    await sock.sendPresenceUpdate('composing', key)
     sfw.randomhusb(async (result) => {
       await sock.sendMessage(key, { image: { url: result.image }, caption: result.name }, { quoted: m })
 
     });
   }
   else if (command == 'waifuh') {
+    await sock.sendPresenceUpdate('composing', key)
     nfsw.randomnfsw(async (result) => {
       await sock.sendMessage(key, { image: { url: result.image }, caption: result.name, viewOnce: true }, { quoted: m })
 
     });
   }
   else if (command == 'yaoi') {
+    await sock.sendPresenceUpdate('composing', key)
     nfsw.randomyaoinfsw(async (result) => {
       await sock.sendMessage(key, { image: { url: result.image }, caption: result.name, viewOnce: true }, { quoted: m })
 
     });
   }
   else if (command == 'ytsearch') {
-    //cambiar estado a escribiendo
+    await sock.sendPresenceUpdate('composing', key)
     await youtube.ytsearch(outPrefixMessage, async function (err, result) {
       if (err) return sock.sendMessage(key, { text: err }, { quoted: m });
       sock.sendMessage(key, { text: result }, { quoted: m });
     })
   }
   else if (command == 'help') {
+    await sock.sendPresenceUpdate('composing', key)
     if (lowerMessage == prefix + 'help') return await sock.sendMessage(key, await menus.help(), { quoted: m });
     await sock.sendMessage(key, { text: await menus.command(outPrefixMessage) }, { quoted: m });
   }
   else if (command == 'profile') {
+    await sock.sendPresenceUpdate('composing', key)
     var ppUrl = false;
     console.log(msgMentions[0])
     try {
@@ -284,7 +309,7 @@ module.exports = async (m, sock) => {
     if (ppUrl) await sock.sendMessage(key, { image: { url: ppUrl } }, { quoted: m })
   }
   else if (isGroup && command == 'info') {
-
+    await sock.sendPresenceUpdate('composing', key)
     var ppUrl = false;
     const metadata = await sock.groupMetadata(key)
     fs.writeFileSync('./tets2.json', JSON.stringify(metadata))
@@ -299,6 +324,7 @@ module.exports = async (m, sock) => {
 
   }
   else if (isGroup && command == 'op') {
+    await sock.sendPresenceUpdate('composing', key)
     if (!await group.isGroupAdmin(m, sock)) return await sock.sendMessage(key, { text: `No tienes permiso para usar este comando.` }, { quoted: m });
     if (!await group.botIsAdmin(m, sock)) return await sock.sendMessage(key, { text: `Para hacer esto debes darme permisos de administrador.` }, { quoted: m });
     if (!msgMentions[0]) return await sock.sendMessage(key, { text: `Menciona a quien quieres hacer administrador.` }, { quoted: m });
@@ -309,6 +335,7 @@ module.exports = async (m, sock) => {
 
   }
   else if (isGroup && command == 'deop') {
+    await sock.sendPresenceUpdate('composing', key)
     if (!await group.isGroupAdmin(m, sock)) return await sock.sendMessage(key, { text: `No tienes permiso para usar este comando.` }, { quoted: m });
     if (!await group.botIsAdmin(m, sock)) return await sock.sendMessage(key, { text: `Para hacer esto debes darme permisos de administrador.` }, { quoted: m });
     if (!msgMentions[0]) return await sock.sendMessage(key, { text: `Menciona a quien quieres quitar de administrador.` }, { quoted: m });
@@ -319,6 +346,7 @@ module.exports = async (m, sock) => {
 
   }
   else if (isGroup && command == 'kick') {
+    await sock.sendPresenceUpdate('composing', key)
     if (!await group.isGroupAdmin(m, sock)) return await sock.sendMessage(key, { text: `No tienes permiso para usar este comando.` }, { quoted: m });
     if (!await group.botIsAdmin(m, sock)) return await sock.sendMessage(key, { text: `Para hacer esto debes darme permisos de administrador.` }, { quoted: m });
     if (!msgMentions[0]) return await sock.sendMessage(key, { text: `Menciona a quien quieres expulsar.` }, { quoted: m });
@@ -329,6 +357,7 @@ module.exports = async (m, sock) => {
 
   }
   else if (isGroup && command == 'tagall') {
+    await sock.sendPresenceUpdate('composing', key)
     if (!await group.isGroupAdmin(m, sock)) return await sock.sendMessage(key, { text: `No tienes permiso para usar este comando.` }, { quoted: m });
 
     const metadata = await sock.groupMetadata(m.key.remoteJid);
@@ -350,7 +379,7 @@ module.exports = async (m, sock) => {
   else if (command == 'tmp') {
     const templatetButtons = [
       { index: 1, urlButton: { displayText: 'Api example', url: 'https://kurisu-api.herokuapp.com/api/anime' } },
-      { index: 2, callButton: { displayText: 'Call me!', phoneNumber: config['Bot-Number']} },
+      { index: 2, callButton: { displayText: 'Call me!', phoneNumber: config['Bot-Number'] } },
       //{ index: 3, quickReplyButton: { displayText: 'This is a reply, just like normal buttons!', id: 'id-like-buttons-message' } },
     ]
 
@@ -359,7 +388,7 @@ module.exports = async (m, sock) => {
       footer: 'Hello World',
       templateButtons: templatetButtons,
       image: { url: 'https://i.ibb.co/7WQBQtq/Tsuki-ga-Michibiku-Isekai-Douchuu.png' }
-  }
+    }
 
     const sendMsg = await sock.sendMessage(key, buttonMessage)
   }
