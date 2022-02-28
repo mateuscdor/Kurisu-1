@@ -1,7 +1,7 @@
 module.exports = {
   'prefix': '#',
-  'imgbb_apikey': '6d90b087b723d2f5beb52fcd5bc7359c',
-  'BgApikey': ['optccWQ4NP1iAkNqfBo3uqN7','AruGe88ipUNcoZpkgRGPhFqQ'],
-  'Bot-Number': '50379404214',
+  'imgbb_apikey': 'Your_Api_Key',
+  'BgApikey': ['Your_Api_Key'],
+  'Bot-Number': 'Your_Number',
   'stickerTypes':['circle','cropped','default','full']
 };

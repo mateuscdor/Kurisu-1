@@ -3,7 +3,7 @@ const makeWASocket = require('@adiwajshing/baileys');
 
 
 const fs = require('fs');
-const { fun, greeting, imageSearch, youtube, translate, speech, zodiac, simi, stickers, nfsw, menus, sfw, misc,imagesEfects } = require('../lib');
+const { fun, greeting, imageSearch, youtube, translate, speech, zodiac, simi, stickers, nfsw, menus, sfw, misc, imagesEfects } = require('../lib');
 const { group } = require('../utils');
 
 module.exports = async (m, sock) => {
@@ -33,11 +33,10 @@ module.exports = async (m, sock) => {
   var command = '';
 
 
-
+  
   if (messageType == 'conversation') {
     message = m.message.conversation;
-
-
+    //fs.writeFileSync('./tets.json', JSON.stringify(m))
   }
   else if (messageType == 'imageMessage') {
     message = m.message.imageMessage.caption;
@@ -47,6 +46,10 @@ module.exports = async (m, sock) => {
     message = m.message.videoMessage.caption;
     media = m.message.videoMessage;
   }
+  else if (messageType == 'stickerMessage') {
+    //message = m.message.videoMessage.caption;
+
+  }
   else if (messageType == 'extendedTextMessage') {
     //console.log(m.message.extendedTextMessage.contextInfo)
 
@@ -54,8 +57,13 @@ module.exports = async (m, sock) => {
     try {
       if (m.message.extendedTextMessage.contextInfo && m.message.extendedTextMessage.contextInfo.quotedMessage) messageType = Object.keys(m.message.extendedTextMessage.contextInfo.quotedMessage)[0];
       if (m.message.extendedTextMessage.contextInfo && m.message.extendedTextMessage.contextInfo.participant) msgMentions.push(m.message.extendedTextMessage.contextInfo.participant);
+      if (m.message.extendedTextMessage.contextInfo && m.message.extendedTextMessage.contextInfo.quotedMessage.stickerMessage) {
+        media = m.message.extendedTextMessage.contextInfo.quotedMessage.stickerMessage;
+        messageType = 'stickerMessage';
+      }
 
-    } catch (e) { return e }
+    } catch (e) { console.log(e) }
+
     if (m.message.extendedTextMessage.contextInfo && m.message.extendedTextMessage.contextInfo.mentionedJid) for (var mention of m.message.extendedTextMessage.contextInfo.mentionedJid) msgMentions.push(mention);
     canonicalUrl = m.message.extendedTextMessage.canonicalUrl ? m.message.extendedTextMessage.canonicalUrl : false;
     if (messageType == 'videoMessage') media = m.message.extendedTextMessage.contextInfo.quotedMessage.videoMessage;
@@ -76,7 +84,7 @@ module.exports = async (m, sock) => {
 
 
   //COMMANDS
-  if (messageType == 'imageMessage' && command=='stickerbg') {
+  if (messageType == 'imageMessage' && command == 'stickerbg') {
     await sock.sendPresenceUpdate('composing', key)
     var stream = false;
     var sticker = false;
@@ -136,11 +144,25 @@ module.exports = async (m, sock) => {
     for await (const chunk of stream) {
       buffer = Buffer.concat([buffer, chunk])
     }
-    sock.sendMessage(key, { image: { url: await imagesEfects.wasted(buffer) } },{quoted:m})
+    sock.sendMessage(key, { image: { url: await imagesEfects.wasted(buffer) } }, { quoted: m })
   }
   else if (command == 'meme') {
     await sock.sendPresenceUpdate('composing', key)
-    sock.sendMessage(key, { image: { url: await fun.meme() } },{quoted:m})
+    sock.sendMessage(key, { image: { url: await fun.meme() } }, { quoted: m })
+  }
+  else if (messageType == 'stickerMessage' && command == 'img') {
+
+
+    stream = await makeWASocket.downloadContentFromMessage(media, 'sticker');
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk])
+    }
+    imagesEfects.sticBufferToImage(buffer, async (result, err) => {
+      if (err) sock.sendMessage(key, { text: 'ocurrio un error' }, { quoted: m });
+      await sock.sendMessage(key, { image: { url: result } }, { quoted: m })
+    })
+
   }
   else if (command == 'hola') {
     await sock.sendPresenceUpdate('composing', key)
@@ -160,8 +182,8 @@ module.exports = async (m, sock) => {
     if (!args[0]) return await sock.sendMessage(key, { text: 'ingrese el nombre de la cancion o un enlace de youtube' }, { quoted: m })
     await sock.sendPresenceUpdate('recording', key)
     await youtube.youtubeMp32(outPrefixMessage, async (result) => {
-      const msgTitle = await sock.sendMessage(key, { text: result.videoTitle }, { quoted: m })
-      await sock.sendMessage(m.key.remoteJid, { audio: { url: result.file }, mimetype: 'audio/mp4' }, { quoted: msgTitle })
+      //const msgTitle = await sock.sendMessage(key, { text: result.videoTitle }, { quoted: m })
+      await sock.sendMessage(m.key.remoteJid, { audio: { url: result.file }, mimetype: 'audio/mp4' }, {quoted: {key: {participant: botId},message: {conversation:result.videoTitle}}})
     })
 
   }
@@ -172,7 +194,7 @@ module.exports = async (m, sock) => {
     await sock.sendMessage(key, { text: tr }, { quoted: m })
   }
   else if (command == 'say') {
-    
+
     if (!args[0]) return await sock.sendMessage(key, { text: 'ingrese el texto que deseas que diga' }, { quoted: m })
     var lang = 'es'
     if (!outPrefixMessage) return await sock.sendMessage(key, { text: 'Escribe lo que quieras que diga' }, { quoted: m })
@@ -200,6 +222,11 @@ module.exports = async (m, sock) => {
 
     const result = await misc.WebShot(outPrefixMessage, fullpage)
     await sock.sendMessage(key, { image: { url: result } }, { quoted: m })
+  }
+  else if (command == 'lyrics' || command == 'lyric') {
+    if(!args[0])await sock.sendMessage(key, { text: 'Escriba el nombre de la cancion que desea buscar.' }, { quoted: m });
+    await sock.sendPresenceUpdate('composing', key)
+    await sock.sendMessage(key, { text: await misc.lyrics(outPrefixMessage) }, { quoted: m });
   }
   else if (command == 'hub') {
     await sock.sendPresenceUpdate('composing', key)
@@ -312,7 +339,6 @@ module.exports = async (m, sock) => {
     await sock.sendPresenceUpdate('composing', key)
     var ppUrl = false;
     const metadata = await sock.groupMetadata(key)
-    fs.writeFileSync('./tets2.json', JSON.stringify(metadata))
     console.log(metadata.participants)
 
     try {
@@ -375,7 +401,13 @@ module.exports = async (m, sock) => {
     const mss = await sock.sendMessage(key, { text: users, contextInfo: { mentionedJid: usersId } }, { quoted: m });
 
   }
-
+  else if (command == 'tmp') {
+    m.message.conversation='siuuuuuu';
+    //console.log(ms)
+    await sock.sendMessage(key, {text:'siuuuuu'},{quoted: {key: {participant: '0@s.whatsapp.net'},message: {conversation:'Cumchefas!!!!!!!!!'}}})
+    //await sock.sendMessage(key, {text:'siuuuuu'},{quoted: {key: {participant: botId},message: {conversation:'siuuuuuu'}}})
+  }
+  /*
   else if (command == 'tmp') {
     const templatetButtons = [
       { index: 1, urlButton: { displayText: 'Api example', url: 'https://kurisu-api.herokuapp.com/api/anime' } },
@@ -392,5 +424,5 @@ module.exports = async (m, sock) => {
 
     const sendMsg = await sock.sendMessage(key, buttonMessage)
   }
-
+*/
 }
